@@ -857,6 +857,12 @@ function Kobo:init()
         end
     end
 
+    -- FW 6.0 renamed the bd71827_bat power supply of MTK boards to the generic battery one
+    if self.battery_sysfs == "/sys/class/power_supply/bd71827_bat" and not util.pathExists(self.battery_sysfs)
+        and util.pathExists("/sys/class/power_supply/battery") then
+        self.battery_sysfs = "/sys/class/power_supply/battery"
+    end
+
     -- NOTE: i.MX5 devices have a wonky RTC that doesn't like alarms set further away that UINT16_MAX seconds from now...
     --       (c.f., WakeupMgr for more details).
     -- NOTE: getRTCName is currently hardcoded to rtc0 (which is also WakeupMgr's default).
