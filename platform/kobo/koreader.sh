@@ -229,6 +229,9 @@ if [ "${VIA_NICKEL}" = "true" ]; then
     done
     # Remove Nickel's FIFO to avoid udev & udhcpc scripts hanging on open() on it...
     rm -f /tmp/nickel-hardware-status
+    # FW 6.0 moved it to /run/kobo/udev/fifo. Without it, the udev scripts queue events in a backlog instead of
+    # blocking on it while holding their lock, which would leave the next nickel deaf to USB plug events.
+    rm -f /run/kobo/udev/fifo
 
     # We don't need to grab input devices (unless MiniClock is running, in which case that neatly inhibits it while we run).
     if [ ! -d "/tmp/MiniClock" ]; then
