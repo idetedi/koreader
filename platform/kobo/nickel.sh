@@ -146,20 +146,37 @@ if [ -e "/dev/mmcblk1p1" ]; then
     umount /mnt/sd
 fi
 
-if [ -e "/etc/init.d/z-nickel-hardware-status" ]; then
+# On v5+, nickel is launched by /etc/rc.local. FW 6.0 dropped z-nickel-hardware-status, so also detect it via rc.local.
+if [ -e "/etc/init.d/z-nickel-hardware-status" ] || grep -q "/usr/local/Kobo/nickel" "/etc/rc.local" 2>/dev/null; then
     # on v5 use the existing startup scripts
     # Clear LD_LIBRARY_PATH as it gets prepended by start script
     unset LD_LIBRARY_PATH
     # since sometime after 5.2, pulseaudio is started in rc.local. Detect and kill:
-    if grep "pulseaudio" "/etc/rc.local"; then
-        killall pulseaudio
+    # NOTE: rc.local runs with sh -e, so relaunching a daemon that is still alive aborts it before nickel is started.
+    for daemon in pulseaudio speech-dispatcher; do
+        if grep -q "${daemon}" "/etc/rc.local"; then
+            killall -q "${daemon}"
+            kill_timeout=0
+            while pkill -0 "${daemon}" && [ ${kill_timeout} -lt 20 ]; do
+                usleep 250000
+                kill_timeout=$((kill_timeout + 1))
+            done
+        fi
+    done
+    if [ -e "/etc/init.d/z-nickel-hardware-status" ]; then
+        /etc/init.d/z-nickel-hardware-status
     fi
-    if grep "speech-dispatcher" "/etc/rc.local"; then
-        killall speech-dispatcher
-    fi
-    /etc/init.d/z-nickel-hardware-status
     sync
-    /etc/rc.local
+    # rc.local pipes nickel into multilog, but the boot-time multilog is still alive (we inherited nickel's stdout pipe),
+    # and still holds the lock on /tmp/nickel-log: the new one would die, and take nickel down with it (SIGPIPE).
+    killall -q multilog
+    kill_timeout=0
+    while pkill -0 multilog && [ ${kill_timeout} -lt 20 ]; do
+        usleep 250000
+        kill_timeout=$((kill_timeout + 1))
+    done
+    # Our stdout may be that now reader-less pipe, so keep rc.local off it.
+    /etc/rc.local </dev/null >/dev/null 2>&1
 else
     # Recreate Nickel's FIFO ourselves, like rcS does, because udev *will* write to it!
     # Plus, we actually *do* want the stuff udev writes in there to be processed by Nickel, anyway.
