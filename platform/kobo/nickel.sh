@@ -166,6 +166,9 @@ if [ -e "/etc/init.d/z-nickel-hardware-status" ] || grep -q "/usr/local/Kobo/nic
     if [ -e "/etc/init.d/z-nickel-hardware-status" ]; then
         /etc/init.d/z-nickel-hardware-status
     fi
+    # FW 6.0: drop any stale udev FIFO/lock, in case a udev script got stuck writing to it while nickel was down.
+    # Nickel recreates the FIFO, and rc.local's udev-sync.sh replays the events backlogged in the meantime.
+    rm -f /run/kobo/udev/fifo /run/kobo/udev/lock
     sync
     # rc.local pipes nickel into multilog, but the boot-time multilog is still alive (we inherited nickel's stdout pipe),
     # and still holds the lock on /tmp/nickel-log: the new one would die, and take nickel down with it (SIGPIPE).
