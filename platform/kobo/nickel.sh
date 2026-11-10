@@ -167,6 +167,18 @@ if [ -e "/etc/init.d/z-nickel-hardware-status" ] || grep -q "/usr/local/Kobo/nic
     # without this, one more dbus-daemon is left behind each time we go back to nickel.
     # NOTE: Its only clients were nickel's own processes, which are all gone by now. The system bus is left alone.
     pkill -f "dbus-daemon --session"
+    # Likewise for MTK's Wi-Fi firmware launcher: nickel spawns a new wmt_launcher every time it starts,
+    # without checking for a running one, so they pile up too.
+    # NOTE: Keep a single one around instead of killing them all: Wi-Fi needs it (ours included),
+    #       and nothing guarantees that the next nickel will spawn one before we are launched again.
+    wmt_keep=""
+    for wmt_pid in $(pidof wmt_launcher); do
+        if [ -z "${wmt_keep}" ]; then
+            wmt_keep="${wmt_pid}"
+        else
+            kill "${wmt_pid}" 2>/dev/null
+        fi
+    done
     if [ -e "/etc/init.d/z-nickel-hardware-status" ]; then
         /etc/init.d/z-nickel-hardware-status
     fi
