@@ -163,6 +163,10 @@ if [ -e "/etc/init.d/z-nickel-hardware-status" ] || grep -q "/usr/local/Kobo/nic
             done
         fi
     done
+    # rc.local also launches a new session bus every time, and nothing ever stops the previous one:
+    # without this, one more dbus-daemon is left behind each time we go back to nickel.
+    # NOTE: Its only clients were nickel's own processes, which are all gone by now. The system bus is left alone.
+    pkill -f "dbus-daemon --session"
     if [ -e "/etc/init.d/z-nickel-hardware-status" ]; then
         /etc/init.d/z-nickel-hardware-status
     fi
